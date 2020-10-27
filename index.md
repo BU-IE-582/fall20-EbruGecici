@@ -1,1 +1,5 @@
-[link](README.md)
+# EXAMPLE PROGRESS JOURNAL
+
+## IE582 Statistical Learning for Data Mining
+
+### Homework 1
