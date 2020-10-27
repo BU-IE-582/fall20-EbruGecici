@@ -1,5 +1,5 @@
-# EXAMPLE PROGRESS JOURNAL
+# PROGRESS JOURNAL
 
 ## IE582 Statistical Learning for Data Mining
 
-### Homework 1
+### Week 1
