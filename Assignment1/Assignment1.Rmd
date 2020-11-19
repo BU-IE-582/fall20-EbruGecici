@@ -1,0 +1,774 @@
+---
+title: "Homework 1"
+author: "Ebru Gecici"
+date: "19 11 2020"
+output:
+  html_document: 
+    code_folding: hide
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: no
+  word_document: default
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, error = FALSE, warning = FALSE, fig.align = "center")
+```
+
+
+```{r}
+library(data.table)
+library(tidyverse)
+library(dplyr)
+data2020 = fread("E0.csv", select = c(2, 4:42))
+data2019 = fread("E1.csv", select = c(2, 4:42))
+data2018 = fread("E2.csv", select = 2:41)
+
+GamesData = rbind(data2020, data2019, data2018)
+```
+
+In this homework, we examine the sports forecasting. Because sports forecasting is important factor in games. Many people, professionally (team managers, sponsors, the media and the growing number of punters) or unprofessionally (sports fans), are interested in sports forecasting. For this reason this forecasting has an important role to make predictions. In these studies, odd probability is also important because it gives more realistic results than probabilities. For this reason, in the sports forecasting, *odd probabilities* are preferred. 
+
+In the football games there are three probability:
+
+1. **Home** team may win. (If the home team is win, we are called H)
+2. The match may end in a **draw**. (If there is no team which win, we are called D)
+3. **Away** team may win. (If the away team is win, we are called A)
+
+After the basic explanation, we analyze this process in England Football League, i.e., *Premiere Leagure* by using 2018-2020 seasons.
+
+## **Task 1**
+
+### Histograms 
+
+
+Histograms gives basic idea of the data's distribution. For this reason, we first examine the histogram of the number of goals. First we give number of goals scored by home team and then we give goals socred by away team. Lastly, the difference between number of goals of home team and number of goals away team is presented as histogram. 
+
+#### Number of Goals  scored by Home Team
+
+```{r, out.width = "75%"}
+# Home Score Goals
+# Our data set name is GamesData
+# Variable which we use to create is FTHG and its explanation is that number of goals scored by home team
+GamesData %>%
+  ggplot(., aes(x = FTHG)) +
+  geom_histogram(stat = "count", fill = "paleturquoise4") +
+  theme_minimal() +
+  labs(x = "Home Goals",
+       y = "Number of Games",
+       title = "Home Score(goals)",
+       subtitle = "2018-2020")
+```
+
+#### Number of Goals  scored by Away Team
+
+```{r, out.width = "75%"}
+# Away Score Goals
+# Our data set name is GamesData
+# Variable which we use to create is FTAG and its explanation is that number of goals scored by away team
+GamesData %>%
+  ggplot(., aes(x = FTAG)) +
+  geom_histogram(stat = "count", fill = "seashell4") +
+  theme_minimal() +
+  labs(x = "Away Goals",
+       y = "Number of Games",
+       title = "Away Score(goals)",
+       subtitle = "2018-2020")
+```
+
+#### Home Score(goals)– Away Score(goals)
+
+```{r, out.width = "75%"}
+# Difference between Home and Away
+# Our data set name is GamesData
+# Variable which we use to create is FTHG and its explanation is that number of goals scored by home team
+GamesData %>%
+  ggplot(., aes(x = FTHG-FTAG)) +
+  geom_histogram(stat = "count", fill = "pink3") +
+  theme_minimal() +
+  labs(x = "Home Score(goals)– Away Score(goals)",
+       y = "Number of Games",
+       title = "Home Score(goals)– Away Score(goals)",
+       subtitle = "2018-2020")
+```
+
+Home and away goal histograms are look like poisson distribution. But to represent more clearly we can add poisson distribution line into histograms.
+
+```{r, out.width = "75%"}
+library(patchwork)   # for combine plots in one lines
+
+
+# First, we create data which follow poisson distribuiton. To make this data first we use Home goals
+# Because we try to explain whether the home goals follow poisson distribution
+Xh = seq(min(GamesData$FTHG), max(GamesData$FTHG), by = 1)
+Yh = dpois(Xh, lambda = mean(GamesData$FTHG))
+poisH = data.frame(Xh,Yh)
+
+a =GamesData %>%
+    ggplot() +
+    geom_histogram(aes(x = FTHG), stat = "count", fill = "paleturquoise4") +
+    geom_line(aes(x=Xh, y=Yh* nrow(GamesData)), data = poisH, color = "black", size =1) +
+    theme_minimal() +
+    labs(x = "Home Goals",
+         y = "Number of Games",
+         title = "Home Score(goals)",
+         subtitle = "2018-2020")
+
+# Like home goals, we make same processed for away goals
+Xa = seq(min(GamesData$FTAG), max(GamesData$FTAG), by = 1)
+Ya = dpois(Xa, lambda = mean(GamesData$FTHG))
+poisA = data.frame(Xa,Ya)
+
+b = GamesData %>%
+    ggplot() +
+    geom_histogram(aes(x = FTAG), stat = "count", fill = "seashell4") +
+    geom_line(aes(x=Xa, y=Ya* nrow(GamesData)), data = poisA, color = "black", size =1) +
+    theme_minimal() +
+    labs(x = "Away Goals",
+         y = "Number of Games",
+         title = "Away Score(goals)",
+         subtitle = "2018-2020")
+
+(a | b)
+```
+
+## **Task 2**
+
+```{r}
+GamesData %>%
+  colnames()
+```
+
+There are six different bet sites, which are B365, BW, IW, PS, WH, and VC. Each data contains three columns in the data for home, draw and away statistics. By using 4 of them, first I calculate the P(home win), P(tie) and P(away win) by P(x) = 1/odd. For this purpose, I select *IW, PS, WH, VC*.
+
+```{r}
+#Calculation of  probability
+# IW bet 
+GamesData$IW_PH = 1 / GamesData$IWH # PH: probability home
+GamesData$IW_PD = 1 / GamesData$IWD # PD: probability draw
+GamesData$IW_PA = 1 / GamesData$IWA # PA: probability away
+
+# PS bet
+GamesData$PS_PH = 1 / GamesData$PSH # PH: probability home
+GamesData$PS_PD = 1 / GamesData$PSD # PD: probability draw
+GamesData$PS_PA = 1 / GamesData$PSA # PA: probability away
+
+# WH bet
+GamesData$WH_PH = 1 / GamesData$WHH # PH: probability home
+GamesData$WH_PD = 1 / GamesData$WHD # PD: probability draw
+GamesData$WH_PA = 1 / GamesData$WHA # PA: probability away
+
+# VC bet
+GamesData$VC_PH = 1 / GamesData$VCH # PH: probability home
+GamesData$VC_PD = 1 / GamesData$VCD # PD: probability draw
+GamesData$VC_PA = 1 / GamesData$VCA # PA: probability away
+```
+
+
+```{r}
+# we add new columns by calculating probabilities with odd probability
+GamesData %>%
+  colnames()
+```
+
+Then we calculate normalization for each probability. Because the values can have different range, for this reason we need to rearrange.
+
+```{r}
+# Normalization of the Probabilities
+# NPH: normalized home probability
+# NPD: normalized draw probability
+# NPA: normalized away probability
+# Normalized IW bet 
+GamesData$IW_NPH = GamesData$IW_PH / (GamesData$IW_PH + GamesData$IW_PD + GamesData$IW_PA)  
+GamesData$IW_NPD = GamesData$IW_PD / (GamesData$IW_PH + GamesData$IW_PD + GamesData$IW_PA) 
+GamesData$IW_NPA = GamesData$IW_PA / (GamesData$IW_PH + GamesData$IW_PD + GamesData$IW_PA) 
+
+# Normalized PS bet
+GamesData$PS_NPH = GamesData$PS_PH / (GamesData$PS_PH + GamesData$PS_PD + GamesData$PS_PA)
+GamesData$PS_NPD = GamesData$PS_PD / (GamesData$PS_PH + GamesData$PS_PD + GamesData$PS_PA)
+GamesData$PS_NPA = GamesData$PS_PA / (GamesData$PS_PH + GamesData$PS_PD + GamesData$PS_PA)
+
+# Normalized WH bet
+GamesData$WH_NPH = GamesData$WH_PH / (GamesData$WH_PH + GamesData$WH_PD + GamesData$WH_PA)
+GamesData$WH_NPD = GamesData$WH_PD / (GamesData$WH_PH + GamesData$WH_PD + GamesData$WH_PA)
+GamesData$WH_NPA = GamesData$WH_PA / (GamesData$WH_PH + GamesData$WH_PD + GamesData$WH_PA)
+
+# Normalized VC bet
+GamesData$VC_NPH = GamesData$VC_PH / (GamesData$VC_PH + GamesData$VC_PD + GamesData$VC_PA)
+GamesData$VC_NPD = GamesData$VC_PD / (GamesData$VC_PH + GamesData$VC_PD + GamesData$VC_PA)
+GamesData$VC_NPA = GamesData$VC_PA / (GamesData$VC_PH + GamesData$VC_PD + GamesData$VC_PA)
+```
+
+```{r}
+# we add new columns by calculating normalized probabilities with odd probability
+GamesData %>%
+  colnames()
+```
+
+First construct a plot of P(home win) – P(away win) on x-axis and P (tie) on y-axis with first probability calculation; then plot the actual probabilities calculated using the results.
+
+To calculate real probability, we use FTR variable, which is the full time result. Then we count the number of games into interval which we define. 
+
+```{r, out.width = "75%"}
+#FTR
+GamesData = GamesData %>%
+  mutate(FTR_category = ifelse(FTR == 'D', 1, 0)) %>%
+  mutate(Group = case_when(IW_NPH - IW_NPA < -0.9  ~ "1",
+                           IW_NPH - IW_NPA < -0.85 ~ "2",
+                           IW_NPH - IW_NPA < -0.8  ~ "3",
+                           IW_NPH - IW_NPA < -0.75 ~ "4",
+                           IW_NPH - IW_NPA < -0.7  ~ "5",
+                           IW_NPH - IW_NPA < -0.65 ~ "6",
+                           IW_NPH - IW_NPA < -0.6  ~ "7",
+                           IW_NPH - IW_NPA < -0.55 ~ "8",
+                           IW_NPH - IW_NPA < -0.5  ~ "9",
+                           IW_NPH - IW_NPA < -0.45 ~ "10",
+                           IW_NPH - IW_NPA < -0.4  ~ "11",
+                           IW_NPH - IW_NPA < -0.35 ~ "12",
+                           IW_NPH - IW_NPA < -0.3  ~ "13",
+                           IW_NPH - IW_NPA < -0.25 ~ "14",
+                           IW_NPH - IW_NPA < -0.2  ~ "15",
+                           IW_NPH - IW_NPA < -0.15 ~ "16",
+                           IW_NPH - IW_NPA < -0.1  ~ "17",
+                           IW_NPH - IW_NPA < -0.05 ~ "18",
+                           IW_NPH - IW_NPA <  0 ~ "19",
+                           IW_NPH - IW_NPA <  0.05 ~ "20",
+                           IW_NPH - IW_NPA <  0.1  ~ "21",
+                           IW_NPH - IW_NPA <  0.15 ~ "22",
+                           IW_NPH - IW_NPA <  0.2 ~ "23",
+                           IW_NPH - IW_NPA <  0.25  ~ "24",
+                           IW_NPH - IW_NPA <  0.3 ~ "25",
+                           IW_NPH - IW_NPA <  0.35 ~ "26",
+                           IW_NPH - IW_NPA <  0.4  ~ "27",
+                           IW_NPH - IW_NPA <  0.45 ~ "28",
+                           IW_NPH - IW_NPA <  0.5 ~ "29",
+                           IW_NPH - IW_NPA <  0.55  ~ "30",
+                           IW_NPH - IW_NPA <  0.6 ~ "31",
+                           IW_NPH - IW_NPA <  0.65 ~ "32",
+                           IW_NPH - IW_NPA <  0.7  ~ "33",
+                           IW_NPH - IW_NPA <  0.75 ~ "34",
+                           IW_NPH - IW_NPA <  0.8 ~ "35",
+                           IW_NPH - IW_NPA <  0.85  ~ "36",
+                           IW_NPH - IW_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(IWResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IWResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IW_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "IW bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+
+```
+
+We make this process for other three bet company.
+
+```{r, out.width = "75%"}
+#FTR
+GamesData = GamesData %>%
+  mutate(Group = case_when(PS_NPH - PS_NPA < -0.9  ~ "1",
+                           PS_NPH - PS_NPA < -0.85 ~ "2",
+                           PS_NPH - PS_NPA < -0.8  ~ "3",
+                           PS_NPH - PS_NPA < -0.75 ~ "4",
+                           PS_NPH - PS_NPA < -0.7  ~ "5",
+                           PS_NPH - PS_NPA < -0.65 ~ "6",
+                           PS_NPH - PS_NPA < -0.6  ~ "7",
+                           PS_NPH - PS_NPA < -0.55 ~ "8",
+                           PS_NPH - PS_NPA < -0.5  ~ "9",
+                           PS_NPH - PS_NPA < -0.45 ~ "10",
+                           PS_NPH - PS_NPA < -0.4  ~ "11",
+                           PS_NPH - PS_NPA < -0.35 ~ "12",
+                           PS_NPH - PS_NPA < -0.3  ~ "13",
+                           PS_NPH - PS_NPA < -0.25 ~ "14",
+                           PS_NPH - PS_NPA < -0.2  ~ "15",
+                           PS_NPH - PS_NPA < -0.15 ~ "16",
+                           PS_NPH - PS_NPA < -0.1  ~ "17",
+                           PS_NPH - PS_NPA < -0.05 ~ "18",
+                           PS_NPH - PS_NPA <  0 ~ "19",
+                           PS_NPH - PS_NPA <  0.05 ~ "20",
+                           PS_NPH - PS_NPA <  0.1  ~ "21",
+                           PS_NPH - PS_NPA <  0.15 ~ "22",
+                           PS_NPH - PS_NPA <  0.2 ~ "23",
+                           PS_NPH - PS_NPA <  0.25  ~ "24",
+                           PS_NPH - PS_NPA <  0.3 ~ "25",
+                           PS_NPH - PS_NPA <  0.35 ~ "26",
+                           PS_NPH - PS_NPA <  0.4  ~ "27",
+                           PS_NPH - PS_NPA <  0.45 ~ "28",
+                           PS_NPH - PS_NPA <  0.5 ~ "29",
+                           PS_NPH - PS_NPA <  0.55  ~ "30",
+                           PS_NPH - PS_NPA <  0.6 ~ "31",
+                           PS_NPH - PS_NPA <  0.65 ~ "32",
+                           PS_NPH - PS_NPA <  0.7  ~ "33",
+                           PS_NPH - PS_NPA <  0.75 ~ "34",
+                           PS_NPH - PS_NPA <  0.8 ~ "35",
+                           PS_NPH - PS_NPA <  0.85  ~ "36",
+                           PS_NPH - PS_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(PSResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PSResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PS_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "PS bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+
+```
+
+
+```{r, out.width = "75%"}
+#FTR
+GamesData = GamesData %>%
+  mutate(Group = case_when(WH_NPH - WH_NPA < -0.9  ~ "1",
+                           WH_NPH - WH_NPA < -0.85 ~ "2",
+                           WH_NPH - WH_NPA < -0.8  ~ "3",
+                           WH_NPH - WH_NPA < -0.75 ~ "4",
+                           WH_NPH - WH_NPA < -0.7  ~ "5",
+                           WH_NPH - WH_NPA < -0.65 ~ "6",
+                           WH_NPH - WH_NPA < -0.6  ~ "7",
+                           WH_NPH - WH_NPA < -0.55 ~ "8",
+                           WH_NPH - WH_NPA < -0.5  ~ "9",
+                           WH_NPH - WH_NPA < -0.45 ~ "10",
+                           WH_NPH - WH_NPA < -0.4  ~ "11",
+                           WH_NPH - WH_NPA < -0.35 ~ "12",
+                           WH_NPH - WH_NPA < -0.3  ~ "13",
+                           WH_NPH - WH_NPA < -0.25 ~ "14",
+                           WH_NPH - WH_NPA < -0.2  ~ "15",
+                           WH_NPH - WH_NPA < -0.15 ~ "16",
+                           WH_NPH - WH_NPA < -0.1  ~ "17",
+                           WH_NPH - WH_NPA < -0.05 ~ "18",
+                           WH_NPH - WH_NPA <  0 ~ "19",
+                           WH_NPH - WH_NPA <  0.05 ~ "20",
+                           WH_NPH - WH_NPA <  0.1  ~ "21",
+                           WH_NPH - WH_NPA <  0.15 ~ "22",
+                           WH_NPH - WH_NPA <  0.2 ~ "23",
+                           WH_NPH - WH_NPA <  0.25  ~ "24",
+                           WH_NPH - WH_NPA <  0.3 ~ "25",
+                           WH_NPH - WH_NPA <  0.35 ~ "26",
+                           WH_NPH - WH_NPA <  0.4  ~ "27",
+                           WH_NPH - WH_NPA <  0.45 ~ "28",
+                           WH_NPH - WH_NPA <  0.5 ~ "29",
+                           WH_NPH - WH_NPA <  0.55  ~ "30",
+                           WH_NPH - WH_NPA <  0.6 ~ "31",
+                           WH_NPH - WH_NPA <  0.65 ~ "32",
+                           WH_NPH - WH_NPA <  0.7  ~ "33",
+                           WH_NPH - WH_NPA <  0.75 ~ "34",
+                           WH_NPH - WH_NPA <  0.8 ~ "35",
+                           WH_NPH - WH_NPA <  0.85  ~ "36",
+                           WH_NPH - WH_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(WHResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WHResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WH_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "WH bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+
+```
+
+```{r, out.width = "75%"}
+#FTR
+GamesData = GamesData %>%
+  mutate(Group = case_when(VC_NPH - VC_NPA < -0.9  ~ "1",
+                           VC_NPH - VC_NPA < -0.85 ~ "2",
+                           VC_NPH - VC_NPA < -0.8  ~ "3",
+                           VC_NPH - VC_NPA < -0.75 ~ "4",
+                           VC_NPH - VC_NPA < -0.7  ~ "5",
+                           VC_NPH - VC_NPA < -0.65 ~ "6",
+                           VC_NPH - VC_NPA < -0.6  ~ "7",
+                           VC_NPH - VC_NPA < -0.55 ~ "8",
+                           VC_NPH - VC_NPA < -0.5  ~ "9",
+                           VC_NPH - VC_NPA < -0.45 ~ "10",
+                           VC_NPH - VC_NPA < -0.4  ~ "11",
+                           VC_NPH - VC_NPA < -0.35 ~ "12",
+                           VC_NPH - VC_NPA < -0.3  ~ "13",
+                           VC_NPH - VC_NPA < -0.25 ~ "14",
+                           VC_NPH - VC_NPA < -0.2  ~ "15",
+                           VC_NPH - VC_NPA < -0.15 ~ "16",
+                           VC_NPH - VC_NPA < -0.1  ~ "17",
+                           VC_NPH - VC_NPA < -0.05 ~ "18",
+                           VC_NPH - VC_NPA <  0 ~ "19",
+                           VC_NPH - VC_NPA <  0.05 ~ "20",
+                           VC_NPH - VC_NPA <  0.1  ~ "21",
+                           VC_NPH - VC_NPA <  0.15 ~ "22",
+                           VC_NPH - VC_NPA <  0.2 ~ "23",
+                           VC_NPH - VC_NPA <  0.25  ~ "24",
+                           VC_NPH - VC_NPA <  0.3 ~ "25",
+                           VC_NPH - VC_NPA <  0.35 ~ "26",
+                           VC_NPH - VC_NPA <  0.4  ~ "27",
+                           VC_NPH - VC_NPA <  0.45 ~ "28",
+                           VC_NPH - VC_NPA <  0.5 ~ "29",
+                           VC_NPH - VC_NPA <  0.55  ~ "30",
+                           VC_NPH - VC_NPA <  0.6 ~ "31",
+                           VC_NPH - VC_NPA <  0.65 ~ "32",
+                           VC_NPH - VC_NPA <  0.7  ~ "33",
+                           VC_NPH - VC_NPA <  0.75 ~ "34",
+                           VC_NPH - VC_NPA <  0.8 ~ "35",
+                           VC_NPH - VC_NPA <  0.85  ~ "36",
+                           VC_NPH - VC_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(VCResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VCResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VC_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "VC bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+```
+
+## **Task 3**
+
+Sometimes the red card can be affect the result of the games and this affect also affect match probabilities. For this reason, to get this problem from the calculation, we can make previous calculations without red card data. 
+
+HR (home red card) and AR (away red card) are 0, that is the both of them do not have player with red card, we can use this data. For this reason we create a new data without red card.
+
+```{r}
+GamesDataRed = GamesData %>%
+                  filter(HR == 0 & AR == 0)
+```
+
+Thus we obtain data set with no red card, i.e., number of red card of home team `r sum(GamesDataRed$HR)` and number of red card of away team `r sum(GamesDataRed$HA)`. This values are `r sum(GamesData$HR)` and `r sum(GamesData$HA)` in the first data set, respectively.
+
+Now to calculate actual data, we can use new calculated data set.
+
+```{r, out.width = "75%"}
+#FTR
+GamesDataRed = GamesDataRed %>%
+  mutate(FTR_category = ifelse(FTR == 'D', 1, 0)) %>%
+  mutate(Group = case_when(IW_NPH - IW_NPA < -0.9  ~ "1",
+                           IW_NPH - IW_NPA < -0.85 ~ "2",
+                           IW_NPH - IW_NPA < -0.8  ~ "3",
+                           IW_NPH - IW_NPA < -0.75 ~ "4",
+                           IW_NPH - IW_NPA < -0.7  ~ "5",
+                           IW_NPH - IW_NPA < -0.65 ~ "6",
+                           IW_NPH - IW_NPA < -0.6  ~ "7",
+                           IW_NPH - IW_NPA < -0.55 ~ "8",
+                           IW_NPH - IW_NPA < -0.5  ~ "9",
+                           IW_NPH - IW_NPA < -0.45 ~ "10",
+                           IW_NPH - IW_NPA < -0.4  ~ "11",
+                           IW_NPH - IW_NPA < -0.35 ~ "12",
+                           IW_NPH - IW_NPA < -0.3  ~ "13",
+                           IW_NPH - IW_NPA < -0.25 ~ "14",
+                           IW_NPH - IW_NPA < -0.2  ~ "15",
+                           IW_NPH - IW_NPA < -0.15 ~ "16",
+                           IW_NPH - IW_NPA < -0.1  ~ "17",
+                           IW_NPH - IW_NPA < -0.05 ~ "18",
+                           IW_NPH - IW_NPA <  0 ~ "19",
+                           IW_NPH - IW_NPA <  0.05 ~ "20",
+                           IW_NPH - IW_NPA <  0.1  ~ "21",
+                           IW_NPH - IW_NPA <  0.15 ~ "22",
+                           IW_NPH - IW_NPA <  0.2 ~ "23",
+                           IW_NPH - IW_NPA <  0.25  ~ "24",
+                           IW_NPH - IW_NPA <  0.3 ~ "25",
+                           IW_NPH - IW_NPA <  0.35 ~ "26",
+                           IW_NPH - IW_NPA <  0.4  ~ "27",
+                           IW_NPH - IW_NPA <  0.45 ~ "28",
+                           IW_NPH - IW_NPA <  0.5 ~ "29",
+                           IW_NPH - IW_NPA <  0.55  ~ "30",
+                           IW_NPH - IW_NPA <  0.6 ~ "31",
+                           IW_NPH - IW_NPA <  0.65 ~ "32",
+                           IW_NPH - IW_NPA <  0.7  ~ "33",
+                           IW_NPH - IW_NPA <  0.75 ~ "34",
+                           IW_NPH - IW_NPA <  0.8 ~ "35",
+                           IW_NPH - IW_NPA <  0.85  ~ "36",
+                           IW_NPH - IW_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(IWResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IWResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IW_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "IW bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+```
+
+
+```{r, out.width = "75%"}
+#FTR
+GamesDataRed = GamesDataRed %>%
+  mutate(Group = case_when(PS_NPH - PS_NPA < -0.9  ~ "1",
+                           PS_NPH - PS_NPA < -0.85 ~ "2",
+                           PS_NPH - PS_NPA < -0.8  ~ "3",
+                           PS_NPH - PS_NPA < -0.75 ~ "4",
+                           PS_NPH - PS_NPA < -0.7  ~ "5",
+                           PS_NPH - PS_NPA < -0.65 ~ "6",
+                           PS_NPH - PS_NPA < -0.6  ~ "7",
+                           PS_NPH - PS_NPA < -0.55 ~ "8",
+                           PS_NPH - PS_NPA < -0.5  ~ "9",
+                           PS_NPH - PS_NPA < -0.45 ~ "10",
+                           PS_NPH - PS_NPA < -0.4  ~ "11",
+                           PS_NPH - PS_NPA < -0.35 ~ "12",
+                           PS_NPH - PS_NPA < -0.3  ~ "13",
+                           PS_NPH - PS_NPA < -0.25 ~ "14",
+                           PS_NPH - PS_NPA < -0.2  ~ "15",
+                           PS_NPH - PS_NPA < -0.15 ~ "16",
+                           PS_NPH - PS_NPA < -0.1  ~ "17",
+                           PS_NPH - PS_NPA < -0.05 ~ "18",
+                           PS_NPH - PS_NPA <  0 ~ "19",
+                           PS_NPH - PS_NPA <  0.05 ~ "20",
+                           PS_NPH - PS_NPA <  0.1  ~ "21",
+                           PS_NPH - PS_NPA <  0.15 ~ "22",
+                           PS_NPH - PS_NPA <  0.2 ~ "23",
+                           PS_NPH - PS_NPA <  0.25  ~ "24",
+                           PS_NPH - PS_NPA <  0.3 ~ "25",
+                           PS_NPH - PS_NPA <  0.35 ~ "26",
+                           PS_NPH - PS_NPA <  0.4  ~ "27",
+                           PS_NPH - PS_NPA <  0.45 ~ "28",
+                           PS_NPH - PS_NPA <  0.5 ~ "29",
+                           PS_NPH - PS_NPA <  0.55  ~ "30",
+                           PS_NPH - PS_NPA <  0.6 ~ "31",
+                           PS_NPH - PS_NPA <  0.65 ~ "32",
+                           PS_NPH - PS_NPA <  0.7  ~ "33",
+                           PS_NPH - PS_NPA <  0.75 ~ "34",
+                           PS_NPH - PS_NPA <  0.8 ~ "35",
+                           PS_NPH - PS_NPA <  0.85  ~ "36",
+                           PS_NPH - PS_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(PSResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PSResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PS_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "PS bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+```
+
+
+```{r, out.width = "75%"}
+#FTR
+GamesDataRed = GamesDataRed %>%
+  mutate(Group = case_when(WH_NPH - WH_NPA < -0.9  ~ "1",
+                           WH_NPH - WH_NPA < -0.85 ~ "2",
+                           WH_NPH - WH_NPA < -0.8  ~ "3",
+                           WH_NPH - WH_NPA < -0.75 ~ "4",
+                           WH_NPH - WH_NPA < -0.7  ~ "5",
+                           WH_NPH - WH_NPA < -0.65 ~ "6",
+                           WH_NPH - WH_NPA < -0.6  ~ "7",
+                           WH_NPH - WH_NPA < -0.55 ~ "8",
+                           WH_NPH - WH_NPA < -0.5  ~ "9",
+                           WH_NPH - WH_NPA < -0.45 ~ "10",
+                           WH_NPH - WH_NPA < -0.4  ~ "11",
+                           WH_NPH - WH_NPA < -0.35 ~ "12",
+                           WH_NPH - WH_NPA < -0.3  ~ "13",
+                           WH_NPH - WH_NPA < -0.25 ~ "14",
+                           WH_NPH - WH_NPA < -0.2  ~ "15",
+                           WH_NPH - WH_NPA < -0.15 ~ "16",
+                           WH_NPH - WH_NPA < -0.1  ~ "17",
+                           WH_NPH - WH_NPA < -0.05 ~ "18",
+                           WH_NPH - WH_NPA <  0 ~ "19",
+                           WH_NPH - WH_NPA <  0.05 ~ "20",
+                           WH_NPH - WH_NPA <  0.1  ~ "21",
+                           WH_NPH - WH_NPA <  0.15 ~ "22",
+                           WH_NPH - WH_NPA <  0.2 ~ "23",
+                           WH_NPH - WH_NPA <  0.25  ~ "24",
+                           WH_NPH - WH_NPA <  0.3 ~ "25",
+                           WH_NPH - WH_NPA <  0.35 ~ "26",
+                           WH_NPH - WH_NPA <  0.4  ~ "27",
+                           WH_NPH - WH_NPA <  0.45 ~ "28",
+                           WH_NPH - WH_NPA <  0.5 ~ "29",
+                           WH_NPH - WH_NPA <  0.55  ~ "30",
+                           WH_NPH - WH_NPA <  0.6 ~ "31",
+                           WH_NPH - WH_NPA <  0.65 ~ "32",
+                           WH_NPH - WH_NPA <  0.7  ~ "33",
+                           WH_NPH - WH_NPA <  0.75 ~ "34",
+                           WH_NPH - WH_NPA <  0.8 ~ "35",
+                           WH_NPH - WH_NPA <  0.85  ~ "36",
+                           WH_NPH - WH_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(WHResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WHResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WH_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "WH bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+
+```
+
+```{r, out.width = "75%"}
+#FTR
+GamesDataRed = GamesDataRed %>%
+  mutate(Group = case_when(VC_NPH - VC_NPA < -0.9  ~ "1",
+                           VC_NPH - VC_NPA < -0.85 ~ "2",
+                           VC_NPH - VC_NPA < -0.8  ~ "3",
+                           VC_NPH - VC_NPA < -0.75 ~ "4",
+                           VC_NPH - VC_NPA < -0.7  ~ "5",
+                           VC_NPH - VC_NPA < -0.65 ~ "6",
+                           VC_NPH - VC_NPA < -0.6  ~ "7",
+                           VC_NPH - VC_NPA < -0.55 ~ "8",
+                           VC_NPH - VC_NPA < -0.5  ~ "9",
+                           VC_NPH - VC_NPA < -0.45 ~ "10",
+                           VC_NPH - VC_NPA < -0.4  ~ "11",
+                           VC_NPH - VC_NPA < -0.35 ~ "12",
+                           VC_NPH - VC_NPA < -0.3  ~ "13",
+                           VC_NPH - VC_NPA < -0.25 ~ "14",
+                           VC_NPH - VC_NPA < -0.2  ~ "15",
+                           VC_NPH - VC_NPA < -0.15 ~ "16",
+                           VC_NPH - VC_NPA < -0.1  ~ "17",
+                           VC_NPH - VC_NPA < -0.05 ~ "18",
+                           VC_NPH - VC_NPA <  0 ~ "19",
+                           VC_NPH - VC_NPA <  0.05 ~ "20",
+                           VC_NPH - VC_NPA <  0.1  ~ "21",
+                           VC_NPH - VC_NPA <  0.15 ~ "22",
+                           VC_NPH - VC_NPA <  0.2 ~ "23",
+                           VC_NPH - VC_NPA <  0.25  ~ "24",
+                           VC_NPH - VC_NPA <  0.3 ~ "25",
+                           VC_NPH - VC_NPA <  0.35 ~ "26",
+                           VC_NPH - VC_NPA <  0.4  ~ "27",
+                           VC_NPH - VC_NPA <  0.45 ~ "28",
+                           VC_NPH - VC_NPA <  0.5 ~ "29",
+                           VC_NPH - VC_NPA <  0.55  ~ "30",
+                           VC_NPH - VC_NPA <  0.6 ~ "31",
+                           VC_NPH - VC_NPA <  0.65 ~ "32",
+                           VC_NPH - VC_NPA <  0.7  ~ "33",
+                           VC_NPH - VC_NPA <  0.75 ~ "34",
+                           VC_NPH - VC_NPA <  0.8 ~ "35",
+                           VC_NPH - VC_NPA <  0.85  ~ "36",
+                           VC_NPH - VC_NPA <  0.9 ~ "37",
+                           TRUE ~ "38")) %>%
+  group_by(Group) %>%
+  mutate(VCResult = mean(FTR_category))
+
+#Graph 
+ggplot() +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VCResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VC_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "Normalized Probability vs. Actual Probability",
+       subtitle = "VC bet",
+       x = "Normalized Home Probability - Normalized Away Probability",
+       y = "Results")
+```
+
+### Interpretaion of Task 2 and Task 3
+
+To give detail of the interpretation, I want to show graph together.
+
+```{r}
+
+A = ggplot() +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IWResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IW_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  labs(title = "IW bet",
+       subtitle = "with red cards",
+       y = "Results")
+
+B = ggplot() +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PSResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PS_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(title = "PS bet",
+       subtitle = "with red cards")
+
+
+C = ggplot() +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WHResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WH_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(title = "WH bet",
+       subtitle = "with red cards")
+
+
+D = ggplot() +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VCResult), data = GamesData, color = "pink3") +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VC_NPD), data = GamesData, color = "black", alpha =0.5) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(title = "VC bet",
+       subtitle = "with red cards")
+
+Ared = ggplot() +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IWResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = IW_NPH - IW_NPA, y = IW_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  labs(title = "IW bet",
+       subtitle = "without red cards",
+       x = "Norm. Home Pro. - Norm. Away Pro.",
+       y = "Results")
+
+
+Bred = ggplot() +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PSResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = PS_NPH - PS_NPA, y = PS_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(title = "PS bet",
+       subtitle = "without red cards")
+
+Cred = ggplot() +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WHResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = WH_NPH - WH_NPA, y = WH_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(title = "WH bet",
+       subtitle = "without red cards")
+
+Dred = ggplot() +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VCResult), data = GamesDataRed, color = "pink3") +
+  geom_point(aes(x = VC_NPH - VC_NPA, y = VC_NPD), data = GamesDataRed, color = "black", alpha =0.5) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(title = "VC bet",
+       subtitle = "without red cards")
+
+(A | B | C | D) /
+(Ared | Bred | Cred | Dred)
+```
+
+## **Resources**
+
+[Variable Definitions](https://docs.google.com/spreadsheets/d/16aZYItIHmGmqaLnRaW0XUMcwFFNxhcLB6nKqpzog06c/edit#gid=0)
+
+[Data](https://www.football-data.co.uk/data.php)
+
+
+## **Helpful Links**
+
+[Statistical Football Modeling A Study of Football Betting and Implementation of Statistical Algorithms in Premier League](http://www.it.uu.se/edu/course/homepage/projektTDB/ht15/project16/Project16_Report.pdf)
+
+Štrumbelj, E., 2014. On determining probability forecasts from betting odds. International journal of forecasting, 30(4), pp.934-943.
+
+Shin, H.S., 1993. Measuring the incidence of insider trading in a market for state-contingent claims. The Economic Journal, 103(420), pp.1141-1153.
