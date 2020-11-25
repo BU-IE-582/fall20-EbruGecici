@@ -133,17 +133,29 @@ b = GamesData %>%
          title = "Away Score(goals)",
          subtitle = "2018-2020")
 
-(a | b)
+(a | b) + 
+  plot_annotation(title = "Histograms with Poisson Distribution Line")
 ```
 
 ## **Task 2**
+
+Task 2 is related to calculation of the odd and probabilities. These two features give an opportunity to estimate score of the match. For this reason, especially for bookmakers, these values are calculated and then according to the results, the unporfessional people and bookmakers bet on the match. 
+
+In this assignment, we try to define odd probability and match score estimation, and moreover to get probabilistic view, first we examine the data and then we calculate these probabilities. After that we obtain comparable about the given data set which belongs to `English Premier League` in between 2018 and 2020 seasons.
+
+### Variable Names in the Data Set
 
 ```{r}
 GamesData %>%
   colnames()
 ```
+We have different statistic value in this data set. This data set contains, home and away team information, red card information of the teams, odd probabilities, which is obtained from the each bet site, with home, away and draw results. Moreover, there are six different bet sites, which are *B365, BW, IW, PS, WH,* and *VC*. Each data contains three columns in the data for home, draw and away statistics. By using 4 of them, first I calculate the P(home win), P(tie) and P(away win) by P(x) = 1/odd. 
 
-There are six different bet sites, which are B365, BW, IW, PS, WH, and VC. Each data contains three columns in the data for home, draw and away statistics. By using 4 of them, first I calculate the P(home win), P(tie) and P(away win) by P(x) = 1/odd. For this purpose, I select *IW, PS, WH, VC*.
+I select **IW, PS, WH, VC** to calculate probabilities and compare the results.
+
+### Calculation of the P(x) = 1/odd
+
+P(x) = 1/odd process is implemented for each chosen bet site/bookmaker and obtained for home, away, and draw results. 
 
 ```{r}
 #Calculation of  probability
@@ -168,6 +180,7 @@ GamesData$VC_PD = 1 / GamesData$VCD # PD: probability draw
 GamesData$VC_PA = 1 / GamesData$VCA # PA: probability away
 ```
 
+After the calculation process, new columns are added into the data set. To see difference, here the column names are given again. the variable names show that the last twelve variables are added after the probability calculation.
 
 ```{r}
 # we add new columns by calculating probabilities with odd probability
@@ -175,7 +188,7 @@ GamesData %>%
   colnames()
 ```
 
-Then we calculate normalization for each probability. Because the values can have different range, for this reason we need to rearrange.
+Then we calculate normalization for each probability to get more clear comparison of the values. In other words, the values can have different range, for this reason we need to rearrange.
 
 ```{r}
 # Normalization of the Probabilities
@@ -202,6 +215,9 @@ GamesData$VC_NPH = GamesData$VC_PH / (GamesData$VC_PH + GamesData$VC_PD + GamesD
 GamesData$VC_NPD = GamesData$VC_PD / (GamesData$VC_PH + GamesData$VC_PD + GamesData$VC_PA)
 GamesData$VC_NPA = GamesData$VC_PA / (GamesData$VC_PH + GamesData$VC_PD + GamesData$VC_PA)
 ```
+
+
+After that process, we have new 12 variables like the previous calculations.
 
 ```{r}
 # we add new columns by calculating normalized probabilities with odd probability
@@ -272,7 +288,7 @@ ggplot() +
 
 ```
 
-We make this process for other three bet company.
+In this graph, black points shows the calculation of the bookmaker and the pink points shows that the real results, which are obtained from the score of the match and classification with 0.05. The graph gives that the bookmakers estimate with lower probability. We make this process for other three bet company.
 
 ```{r, out.width = "75%"}
 # FTR
@@ -777,8 +793,12 @@ Dred = ggplot() +
        subtitle = "without red cards")
 
 (A | B | C | D) /
-(Ared | Bred | Cred | Dred)
+(Ared | Bred | Cred | Dred) + 
+  plot_annotation(title = "Comparison of Data with Red Card and without Red Card")
 ```
+
+
+When we compare the results, the extraction of the red card causes a small difference in the data set and futhermore we obtain similar grah structure for each bookmaker/bet sites. 
 
 ## **Resources**
 
