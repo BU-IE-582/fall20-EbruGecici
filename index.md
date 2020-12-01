@@ -14,7 +14,7 @@ For this puporse, homeworks and projects will be made.
 
 First week contains the introduction to course and basic implamentation of the `R Markdown`. To make further improvements, in the first week basic R-Markdown assignment is made. This assignment contains five interesting application of `R` and `R-Stuido`.
 
-**Assigment 0**: [R-Markdown](Assignment0/Assignment0.html)
+**Assigment 0**: [R-Markdown]()
 
 
 ### Week 3
